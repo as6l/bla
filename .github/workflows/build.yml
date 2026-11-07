@@ -45,11 +45,20 @@ jobs:
           -Pandroid.injected.build.abi=arm64-v8a \
           -x lint
 
+    - name: Collect APKs into one directory
+      run: |
+        mkdir -p collected-apks
+        find . -name "*.apk" -type f | while read apk; do
+          cp "$apk" "collected-apks/${{ matrix.name }}-$(basename "$apk")"
+        done
+        echo "=== Collected APKs ==="
+        ls -la collected-apks/
+
     - name: Upload ${{ matrix.name }} APK
       uses: actions/upload-artifact@v6
       with:
         name: apk-${{ matrix.name }}
-        path: '**/build/outputs/apk/**/*.apk'
+        path: collected-apks/
         if-no-files-found: warn
         retention-days: 7
 
@@ -64,15 +73,33 @@ jobs:
         path: apks
         pattern: apk-*
         merge-multiple: true
+      continue-on-error: true
+
+    - name: Ensure apks directory exists
+      run: |
+        if [ ! -d apks ]; then
+          echo "No artifacts were downloaded. Creating empty apks directory."
+          mkdir -p apks
+        fi
+        echo "=== Downloaded APKs ==="
+        find apks -type f -name "*.apk" -print || echo "No APK files found."
 
     - name: Create unified zip
       run: |
         cd apks
+        if [ -z "$(find . -name '*.apk' -type f)" ]; then
+          echo "No APK files to package. Skipping zip creation."
+          exit 0
+        fi
         zip -r ../lineage-apps-aarch64-latest.zip .
+        echo "=== Zip contents ==="
+        unzip -l ../lineage-apps-aarch64-latest.zip
 
     - name: Upload unified zip
+      if: always()
       uses: actions/upload-artifact@v6
       with:
         name: lineage-apps-aarch64-latest-zip
         path: lineage-apps-aarch64-latest.zip
+        if-no-files-found: warn
         retention-days: 7

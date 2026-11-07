@@ -39,7 +39,7 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x gradlew
 
-    - name: Build (aarch64, R8 via app config)
+    - name: Build
       run: |
         ./gradlew assembleRelease \
           -Pandroid.injected.build.abi=arm64-v8a \
